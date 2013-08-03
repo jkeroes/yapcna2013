@@ -12,28 +12,31 @@ my $data = {
     6 => {title => q(Xue's Talk),      boring=>1, length=>0.25}
 };
 
+under sub {
+    my $self = shift;
+    my $is_pjax = $self->param('_pjax') ? 1 : 0;
+    $self->layout('default') unless $self->req->is_xhr || $is_pjax;
+};
+
 # routes
 
-get '/' => 'index'; # the default route returns the template defined below
+# a request to / returns a list of talks
 
-# a request to /api/item returns JSON with the property 
-# collection assigned to the serialization of $data
-
-get '/api/item' => sub {
+get '/' => sub {
     my $self = shift;
     my $wanted = [
       map { { 'id' => $_,
               'title' => $data->{$_}->{title} } }
       keys %$data
     ];
-    $self->render(json => { collection => $wanted  });
+    $self->stash(collection => $wanted);
+    $self->render('index');
 };
 
 # a request to /api/item/:id returns one of the hashes in $data, 
-# as long as the index is in bounds
 # otherwise return a 404 response
 
-get '/api/item/:id' => sub {
+get 'item/:id' => sub {
     my $self = shift;
     my $id   = int $self->param('id');
     my $size = scalar (keys %$data);
@@ -47,10 +50,11 @@ get '/api/item/:id' => sub {
       $hash->{id} = $id;
       $hash->{next} = ($id % $size) + 1;
       $hash->{prev} = $prev;
-      $self->render(json => $hash);
+      $self->stash(item => $hash);
+      $self->render('detail');
     }
     else {
-      $self->render(json => {error => "Not Found"}, status => 404);
+      $self->render(status => 404);
     }
 };
 
@@ -58,23 +62,33 @@ app->secret('welcome to the clown car, bro');
 app->start;
 __DATA__
 
-@@ index.html.ep
+@@ layouts/default.html.ep
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title>Backbone/Mojolicous Example</title>
+<title><%= title %></title>
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<noscript>This Application Requires JavaScript.</noscript>
 <h1>Schedule</h1>
 <div id="content">
-Loading...
+    <%= content %>
 </div>
 <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script src="http://cdnjs.cloudflare.com/ajax/libs/mustache.js/0.7.2/mustache.min.js"></script>
-<script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min.js"></script>
-<script src="http://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.0.0/backbone-min.js"></script>
-<script src="/app.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/jquery.pjax/1.7.0/jquery.pjax.min.js"></script>
+<script src="/app.js"></script> 
 </body>
 </html>
+
+@@ index.html.ep
+% title 'home | listing';
+<ul>
+% for my $item (@$collection) {
+    <li><a href="/item/<%= $item->{id} %>"><%= $item->{title} %></a></li>
+% }
+</ul>
+
+@@ detail.html.ep
+% title 'item | detail';
+<p>Title: <%= $item->{title} %>, <%= $item->{length} %> hours</p>
+<p><a href="/item/<%= $item->{prev} %>">Previous</a> | <a href="/">Home</a> | <a href="/item/<%= $item->{next} %>">Next</a></p>
