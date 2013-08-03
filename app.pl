@@ -12,6 +12,9 @@ my $data = {
     6 => {title => q(Xue's Talk),      boring=>1, length=>0.25}
 };
 
+# check if this is request from pjax, if so, then don't use a layout
+# see https://gist.github.com/taiju/2382076
+
 under sub {
     my $self = shift;
     my $is_pjax = $self->param('_pjax') ? 1 : 0;
@@ -33,7 +36,7 @@ get '/' => sub {
     $self->render('index');
 };
 
-# a request to /api/item/:id returns one of the hashes in $data, 
+# a request to /item/:id returns one of the hashes in $data, 
 # otherwise return a 404 response
 
 get 'item/:id' => sub {
@@ -66,7 +69,7 @@ __DATA__
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<title><%= title %></title>
+<title>Mojo/Pjax Demo</title>
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -81,14 +84,18 @@ __DATA__
 </html>
 
 @@ index.html.ep
-% title 'home | listing';
 <ul>
 % for my $item (@$collection) {
     <li><a href="/item/<%= $item->{id} %>"><%= $item->{title} %></a></li>
 % }
+    <li><a href="/item/3000">Fake Item</a></li>
 </ul>
 
 @@ detail.html.ep
-% title 'item | detail';
 <p>Title: <%= $item->{title} %>, <%= $item->{length} %> hours</p>
 <p><a href="/item/<%= $item->{prev} %>">Previous</a> | <a href="/">Home</a> | <a href="/item/<%= $item->{next} %>">Next</a></p>
+
+@@ not_found.development.html.ep
+<p>This item doesn't exist.</p>
+<p><a href="/">Home</a></p>
+
